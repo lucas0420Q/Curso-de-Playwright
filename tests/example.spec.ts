@@ -461,6 +461,38 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   await volverBtn.click();
   await expect(page).toHaveURL(CASES_URL, { timeout: 10000 });
 
+  // --- EXPORTAR EL ÚLTIMO CASO POR NRO. TICKET ---
+
+  // 1. Obtén el número de ticket del último caso creado (columna 2 de la fila maxRowIndex)
+  const ticketCell = rowLocators.nth(maxRowIndex).locator('div[role="gridcell"][aria-colindex="2"]');
+  const ticketNumber = (await ticketCell.textContent())?.trim();
+
+  // 2. Haz clic en el botón de filtro (ícono)
+  await page.locator('.call-to-actions_filterButton__qquo7').click();
+
+  // 3. Marca el checkbox "Nro. Ticket" si no está marcado
+  const ticketCheckbox = page.locator('input[type="checkbox"][value="TicketNumber"]');
+  await expect(ticketCheckbox).toBeVisible({ timeout: 5000 });
+  if (!(await ticketCheckbox.isChecked())) {
+    await ticketCheckbox.check();
+  }
+
+  // 4. Ingresa el número de ticket en el input correcto
+  const ticketInput = page.locator('#TicketNumber');
+  await expect(ticketInput).toBeVisible({ timeout: 5000 });
+  await ticketInput.fill(ticketNumber!);
+
+  // 5. Aplica el filtro (puede ser con Enter o con un botón "Filtrar" si existe)
+  await ticketInput.press('Enter');
+
+  // 6. Espera a que se actualicen los resultados
+  await page.waitForTimeout(2000);
+
+  // 7. Haz clic en el botón "Exportar"
+  const exportBtn = page.locator('button.primaryButton_button__IrLLt', { hasText: 'Exportar' });
+  await expect(exportBtn).toBeVisible({ timeout: 5000 });
+  await exportBtn.click();
+
   // 14. Pausa la ejecución para inspección manual (útil en desarrollo)
   await page.pause();
   // 15. Muestra en consola que el test se completó y el ID del caso editado
