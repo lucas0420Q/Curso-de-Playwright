@@ -178,43 +178,10 @@ import { test, expect } from '@playwright/test';
 // });
 
 
-
-
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-
-
-
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-
-
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-
-
-
-
-
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-
-
-
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// Genera una cadena de texto aleatoria para campos como la descripción.
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
-// --- FUNCIÓN AUXILIAR ---
-// --- FUNCIÓN AUXILIAR ---
-// --- FUNCIÓN AUXILIAR ---
 // Define la URL base del ambiente donde corre la aplicación
+// Define la URL base de la aplicación
+
+
 const BASE_URL = 'http://localhost:3000';
 
 // Define la URL de la pantalla principal de casos usando la base
@@ -228,6 +195,9 @@ const EDIT_CASE_URL = (id: string | number) => `${BASE_URL}/front-crm/cases/edit
 
 // Define la URL de detalle de caso
 const SHOW_CASE_URL = (id: string | number) => `${BASE_URL}/front-crm/cases/show/${id}`;
+
+// --- FUNCIÓN AUXILIAR PARA TEXTO ALEATORIO ---
+// Genera una cadena de texto aleatoria para campos como la descripción.
 
 // Función que genera un string aleatorio de la longitud indicada
 function generateRandomString(length: number): string {
@@ -261,7 +231,8 @@ async function selectDropdownOption(page, fieldName: string, optionText: string)
 
 // Test principal: crear y editar un caso de CRM de principio a fin
 test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
-  test.setTimeout(70000); // 70 segundos, puedes ajustar según lo que necesites
+  // Establece el timeout máximo del test en 70 segundos
+  test.setTimeout(70000);
 
   // --- LOGIN ---
 
@@ -324,8 +295,6 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   const rowCount = await rowLocators.count();
   // Si no hay filas, lanza un error
   if (rowCount === 0) throw new Error('No se encontraron filas de datos en la tabla.');
-  // Muestra la cantidad de filas encontradas en consola
-  // console.log('Cantidad de filas:', rowCount);
 
   // Variables para guardar el ticket más alto y su índice
   let maxTicket = -1, maxRowIndex = -1;
@@ -377,9 +346,6 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   if (!caseIdMatch) throw new Error('No se pudo extraer el ID del caso desde la URL: ' + url);
   // Guarda el ID del caso editado
   const caseId = caseIdMatch[1];
-
-  // Si necesitas comparar la URL de edición, puedes usar:
-  // await expect(page).toHaveURL(EDIT_CASE_URL(caseId), { timeout: 10000 });
 
   // --- EDICIÓN DEL CASO ---
 
@@ -453,7 +419,8 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   const visionGeneralTab = tabsContainer.locator('p', { hasText: 'Visión general' });
   await expect(visionGeneralTab).toBeVisible({ timeout: 5000 });
   await visionGeneralTab.click();
-  await page.waitForTimeout(10000); // Espera 10 segundos
+  // Espera a que el botón "Volver" esté visible antes de continuar
+  await expect(page.getByRole('button', { name: 'Volver' })).toBeVisible({ timeout: 15000 });
 
   // Haz clic en el botón "Volver"
   const volverBtn = page.getByRole('button', { name: 'Volver' });
@@ -492,6 +459,15 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   const exportBtn = page.locator('button.primaryButton_button__IrLLt', { hasText: 'Exportar' });
   await expect(exportBtn).toBeVisible({ timeout: 5000 });
   await exportBtn.click();
+
+  // --- CAMBIAR A VISTA KANBAN ---
+
+  // 1. Haz clic en el botón del dropdown para abrir el menú de vistas
+  await page.locator('button#dropdown-basic').click();
+
+  // 2. Espera a que la opción "Vista de Kanban" sea visible y haz clic en ella
+  await expect(page.locator('span', { hasText: 'Vista de Kanban' })).toBeVisible({ timeout: 5000 });
+  await page.locator('span', { hasText: 'Vista de Kanban' }).click();
 
   // 14. Pausa la ejecución para inspección manual (útil en desarrollo)
   await page.pause();
