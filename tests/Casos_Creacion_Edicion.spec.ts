@@ -474,3 +474,4 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   // 15. Muestra en consola que el test se completó y el ID del caso editado
   console.log('Test completado: El caso fue creado y editado exitosamente con ID:', caseId);
 });
+

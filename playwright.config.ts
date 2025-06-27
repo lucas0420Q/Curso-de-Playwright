@@ -27,9 +27,11 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     // baseURL: 'http://localhost:3000',
-
+    headless: false, // Esto hace que se muestre el navegador durante las pruebas
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    /* Ignore HTTPS errors */
+    ignoreHTTPSErrors: true,
   },
 
   /* Configure projects for major browsers */
@@ -47,7 +49,7 @@ export default defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-    },*\
+    },*/
 
     /* Test against mobile viewports. */
     // {
