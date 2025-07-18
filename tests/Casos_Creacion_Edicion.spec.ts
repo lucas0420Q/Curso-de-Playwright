@@ -231,8 +231,8 @@ async function selectDropdownOption(page, fieldName: string, optionText: string)
 
 // Test principal: crear y editar un caso de CRM de principio a fin
 test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
-  // Establece el timeout máximo del test en 70 segundos
-  test.setTimeout(70000);
+  // Establece el timeout máximo del test en 100 segundos
+  test.setTimeout(100000);
 
   // --- LOGIN ---
 
@@ -379,15 +379,52 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
 
   // 12. Hace clic en "Guardar" y espera la redirección a la pantalla principal de casos
   await page.getByRole('button', { name: 'Guardar' }).click();
-  await page.waitForTimeout(2000); // Espera 2 segundos
+  
+  // Espera a que la URL cambie de vuelta a la lista principal (confirmando que se guardó)
+  await expect(page).toHaveURL(CASES_URL, { timeout: 15000 });
+  
+  // Espera adicional para asegurar que el guardado se complete en el backend
+  await page.waitForTimeout(3000);
+  
+  // Espera a que la red esté inactiva (sin peticiones pendientes)
+  await page.waitForLoadState('networkidle');
 
-  // Después de guardar la edición y volver a la lista principal, entra a la vista detalle:
+  // Después de guardar la edición y confirmar que se guardó correctamente, recarga la pantalla
   await page.goto(CASES_URL, { waitUntil: 'domcontentloaded' });
+
+  // --- RE-DEFINIR LOCATORS DESPUÉS DE LA EDICIÓN ---
+  
+  // Busca nuevamente todas las filas de datos después de la edición
+  const rowLocatorsAfterEdit = page.locator('div[role="row"].rs-table-row[aria-rowindex]:not([aria-rowindex="1"])');
+  // Espera a que al menos una fila de datos esté visible
+  await expect(rowLocatorsAfterEdit.first()).toBeVisible({ timeout: 20000 });
+
+  // Recalcula el índice del caso editado (debería ser el mismo maxRowIndex)
+  const rowCountAfterEdit = await rowLocatorsAfterEdit.count();
+  if (rowCountAfterEdit === 0) throw new Error('No se encontraron filas de datos después de la edición.');
+
+  // Variables para encontrar nuevamente el caso editado
+  let maxTicketAfterEdit = -1, maxRowIndexAfterEdit = -1;
+
+  // Recorre todas las filas para encontrar la del ticket más alto (el caso editado)
+  for (let i = 0; i < rowCountAfterEdit; i++) {
+    const row = rowLocatorsAfterEdit.nth(i);
+    const ticketCell = row.locator('div[role="gridcell"][aria-colindex="2"]');
+    if (await ticketCell.count() === 0) continue;
+    const ticketText = (await ticketCell.textContent())?.replace(/\s+/g, '') || '';
+    const ticketNum = parseInt(ticketText, 10);
+    if (!isNaN(ticketNum) && ticketNum > maxTicketAfterEdit) {
+      maxTicketAfterEdit = ticketNum;
+      maxRowIndexAfterEdit = i;
+    }
+  }
+
+  if (maxRowIndexAfterEdit === -1) throw new Error('No se encontró el caso editado en la tabla.');
 
   // --- VISTA DETALLE DEL CASO --- 
 
-  // Selecciona la fila y la celda de acciones del último caso
-  const detailRow = rowLocators.nth(maxRowIndex);
+  // Selecciona la fila y la celda de acciones del último caso editado
+  const detailRow = rowLocatorsAfterEdit.nth(maxRowIndexAfterEdit);
   const detailCell = detailRow.locator('div[role="gridcell"][aria-colindex="1"]');
   // El segundo div es el botón de detalle (ícono de ojo)
   const detailButton = detailCell.locator('.d-flex > div').nth(1);
@@ -403,22 +440,30 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   // --- Recorrer las pestañas ---
   const tabsContainer = page.locator('.show_tabsContainer__rmHmR');
 
+  // Verifica que la pestaña "Visión general" esté seleccionada por defecto
+  const visionGeneralSelectedTab = tabsContainer.locator('.show_selectedTab__kmKSi p', { hasText: 'Visión general' });
+  await expect(visionGeneralSelectedTab).toBeVisible({ timeout: 5000 });
+  
+  // Permanece en la vista "Visión general" por más tiempo para observar los cambios
+  await page.waitForTimeout(5000); // Espera 15 segundos en lugar de continuar inmediatamente
+
   // Haz clic en la pestaña "Historial"
   const historialTab = tabsContainer.locator('p', { hasText: 'Historial' });
   await expect(historialTab).toBeVisible({ timeout: 5000 });
   await historialTab.click();
-  await page.waitForTimeout(10000); // Espera 10 segundos
+  await page.waitForTimeout(5000); // Espera 20 segundos
 
   // Haz clic en la pestaña "Cronología"
   const cronologiaTab = tabsContainer.locator('p', { hasText: 'Cronología' });
   await expect(cronologiaTab).toBeVisible({ timeout: 5000 });
   await cronologiaTab.click();
-  await page.waitForTimeout(10000); // Espera 10 segundos
+  await page.waitForTimeout(5000); // Espera 10 segundos
 
   // Vuelve a la pestaña "Visión general"
   const visionGeneralTab = tabsContainer.locator('p', { hasText: 'Visión general' });
   await expect(visionGeneralTab).toBeVisible({ timeout: 5000 });
   await visionGeneralTab.click();
+  
   // Espera a que el botón "Volver" esté visible antes de continuar
   await expect(page.getByRole('button', { name: 'Volver' })).toBeVisible({ timeout: 15000 });
 
@@ -430,8 +475,8 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
 
   // --- EXPORTAR EL ÚLTIMO CASO POR NRO. TICKET ---
 
-  // 1. Obtén el número de ticket del último caso creado (columna 2 de la fila maxRowIndex)
-  const ticketCell = rowLocators.nth(maxRowIndex).locator('div[role="gridcell"][aria-colindex="2"]');
+  // 1. Obtén el número de ticket del último caso creado (columna 2 de la fila maxRowIndexAfterEdit)
+  const ticketCell = rowLocatorsAfterEdit.nth(maxRowIndexAfterEdit).locator('div[role="gridcell"][aria-colindex="2"]');
   const ticketNumber = (await ticketCell.textContent())?.trim();
 
   // 2. Haz clic en el botón de filtro (ícono)
@@ -460,14 +505,89 @@ test('Crear y editar un caso de CRM de principio a fin', async ({ page }) => {
   await expect(exportBtn).toBeVisible({ timeout: 5000 });
   await exportBtn.click();
 
+  // --- LIMPIAR FILTROS DESPUÉS DE EXPORTAR ---
+
+  // 8. Vuelve a abrir el panel de filtros para limpiar
+  await page.locator('.call-to-actions_filterButton__qquo7').click();
+
+  // 9. Espera a que el panel de filtros se abra completamente
+  await page.waitForTimeout(1000);
+
+  // 10. Busca el botón "Limpiar" usando el selector específico del HTML proporcionado
+  // Primero intenta con el botón visible para pantallas pequeñas
+  const limpiarBtnSmall = page.locator('.card-footer button.btn-secondary.d-xl-none', { hasText: 'Limpiar' });
+  // Luego intenta con el botón visible para pantallas grandes
+  const limpiarBtnLarge = page.locator('.card-footer button.btn-secondary.d-none.d-xl-inline-block', { hasText: 'Limpiar' });
+  
+  // Verifica cuál botón está visible y habilitado
+  let limpiarBtnToUse;
+  
+  if (await limpiarBtnSmall.isVisible()) {
+    limpiarBtnToUse = limpiarBtnSmall;
+  } else if (await limpiarBtnLarge.isVisible()) {
+    limpiarBtnToUse = limpiarBtnLarge;
+  } else {
+    // Fallback: usa cualquier botón con clase btn-secondary y texto "Limpiar"
+    limpiarBtnToUse = page.locator('.card-footer button.btn-secondary', { hasText: 'Limpiar' }).first();
+  }
+
+  // Espera a que el botón esté visible
+  await expect(limpiarBtnToUse).toBeVisible({ timeout: 5000 });
+  
+  // Verifica si el botón está habilitado antes de hacer clic
+  const isEnabledPostExport = await limpiarBtnToUse.isEnabled();
+  if (isEnabledPostExport) {
+    await limpiarBtnToUse.click();
+  }
+
+  // Espera un momento después de limpiar
+  await page.waitForTimeout(1000);
+
   // --- CAMBIAR A VISTA KANBAN ---
 
-  // 1. Haz clic en el botón del dropdown para abrir el menú de vistas
+  // 10. Haz clic en el botón del dropdown para abrir el menú de vistas
   await page.locator('button#dropdown-basic').click();
 
-  // 2. Espera a que la opción "Vista de Kanban" sea visible y haz clic en ella
+  // 11. Espera a que la opción "Vista de Kanban" sea visible y haz clic en ella
   await expect(page.locator('span', { hasText: 'Vista de Kanban' })).toBeVisible({ timeout: 5000 });
   await page.locator('span', { hasText: 'Vista de Kanban' }).click();
+
+  // --- INTERACTUAR CON EL SELECTOR TypeId ---
+
+  // 12. Localiza el selector por su name="TypeId"
+  const typeSelector = page.locator('select[name="TypeId"]');
+  await expect(typeSelector).toBeVisible({ timeout: 5000 });
+
+  // 13. Obtiene todas las opciones del selector
+  const options = await typeSelector.locator('option').all();
+  
+  // 14. Crea un array para almacenar la información de las opciones
+  const optionValues: { value: string | null; text: string | undefined }[] = [];
+  
+  // 15. Recorre todas las opciones y obtiene sus valores y textos
+  for (const option of options) {
+    const value = await option.getAttribute('value');
+    const text = await option.textContent();
+    optionValues.push({ value, text: text?.trim() });
+  }
+
+  // 16. Selecciona ENTIDAD (value="2")
+  await typeSelector.selectOption('2');
+  const entidadValue = await typeSelector.inputValue();
+  
+  // 17. Espera 5 segundos
+  await page.waitForTimeout(5000);
+
+  // 18. Selecciona COMERCIO (value="1")
+  await typeSelector.selectOption('1');
+  const comercioValue = await typeSelector.inputValue();
+  
+  // 19. Espera 5 segundos
+  await page.waitForTimeout(5000);
+
+  // 20. Selecciona TODOS (value="0")
+  await typeSelector.selectOption('0');
+  const todosValue = await typeSelector.inputValue();
 
   // 14. Pausa la ejecución para inspección manual (útil en desarrollo)
   await page.pause();
