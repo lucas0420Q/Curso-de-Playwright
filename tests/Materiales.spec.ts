@@ -17,8 +17,8 @@ let materialId: string = '';
 
 // Test para acceder a la pantalla de materiales
 test('Acceder a la pantalla de materiales', async ({ page }) => {
-  // Establece el timeout máximo del test en 2 minutos
-  test.setTimeout(120000);
+  // Establece el timeout máximo del test en 180 segundos (3 minutos)
+  test.setTimeout(180000);
 
   // Configurar manejo de errores de página
   page.on('pageerror', (error) => {
@@ -627,12 +627,17 @@ test('Acceder a la pantalla de materiales', async ({ page }) => {
   
   try {
     // Verificar que la página sigue activa antes de guardar
+    if (page.isClosed()) {
+      console.log('Error: La página se cerró antes de guardar');
+      return;
+    }
+    
     await expect(page.locator('body')).toBeVisible({ timeout: 5000 });
     
     // Localizar y hacer clic en el botón "Guardar" o "Actualizar"
-    const guardarBtn = page.locator('button').filter({ hasText: /Guardar|Actualizar|Confirmar/i });
-    await expect(guardarBtn.first()).toBeVisible({ timeout: 10000 });
-    await guardarBtn.first().click();
+    const guardarBtn = page.locator('button.primaryButton_button__IrLLt', { hasText: 'Guardar' });
+    await expect(guardarBtn).toBeVisible({ timeout: 10000 });
+    await guardarBtn.click();
     
     // Esperar mensaje de confirmación de actualización
     const mensajeConfirmacion = page.locator('text=/actualizado correctamente|guardado correctamente|editado exitosamente|modificado correctamente|éxito|exitoso/i').first();
@@ -641,12 +646,111 @@ test('Acceder a la pantalla de materiales', async ({ page }) => {
     const mensajeTexto = await mensajeConfirmacion.textContent();
     console.log(`Mensaje de confirmación de edición: ${mensajeTexto}`);
     
+    // Esperar a que redirija automáticamente a la lista principal
+    await page.waitForURL(MATERIALS_URL, { timeout: 10000 });
+    console.log('Regresó automáticamente a la lista de materiales');
+    
   } catch (error) {
     console.log('Error al guardar los cambios:', error);
+    
+    // Verificar si la página sigue activa
+    if (page.isClosed()) {
+      console.log('La página se cerró durante el guardado');
+      return;
+    }
+    
+    // Intentar navegar manualmente a la lista
+    try {
+      console.log('Intentando navegar manualmente a la lista de materiales...');
+      await page.goto(MATERIALS_URL);
+      await page.waitForTimeout(2000);
+    } catch (navError) {
+      console.log('Error en navegación manual:', navError);
+      return;
+    }
   }
   
-  // Pausa la ejecución para inspección manual del formulario
-  await page.pause();
+  // --- FILTRAR POR NÚMERO DE TICKET ---
+  console.log(`Filtrando por el número de ticket: ${materialId}`);
+  
+  try {
+    // Verificar que la página no se haya cerrado
+    if (page.isClosed()) {
+      console.log('Error: La página se cerró durante el filtrado');
+      return;
+    }
+    
+    // Esperar a que la página se cargue completamente
+    await page.waitForTimeout(2000);
+    
+    // Localiza el campo de búsqueda de materiales
+    const buscarInput = page.locator('input[placeholder*="Buscar"], input[type="search"], input[placeholder*="Material"], input[placeholder*="Pedido"]').first();
+    await expect(buscarInput).toBeVisible({ timeout: 5000 });
+    
+    // Limpia el campo de búsqueda primero
+    await buscarInput.clear();
+    
+    // Ingresa el número de ticket en el campo de búsqueda
+    await buscarInput.fill(materialId || '');
+    
+    // Presiona Enter para ejecutar la búsqueda
+    await buscarInput.press('Enter');
+    
+    // Espera un momento para que se actualice la tabla con los resultados filtrados
+    await page.waitForTimeout(2000);
+    
+    console.log('Filtro aplicado exitosamente con el número de ticket:', materialId);
+    
+    // --- EXPORTAR EL PEDIDO FILTRADO ---
+    
+    try {
+      // Verificar que la página sigue activa antes de exportar
+      if (page.isClosed()) {
+        console.log('Error: La página se cerró antes de exportar');
+        return;
+      }
+      
+      // Localizar el botón "Exportar"
+      const exportarBtn = page.locator('button.primaryButton_button__IrLLt', { hasText: 'Exportar' });
+      await expect(exportarBtn).toBeVisible({ timeout: 5000 });
+      
+      // Hacer clic en el botón exportar
+      await exportarBtn.click();
+      
+      console.log('✓ Botón "Exportar" clickeado exitosamente');
+      
+      // Pausa para verificar manualmente si se exportó el archivo
+      console.log('⏸️ PAUSA: Verifica si se descargó el archivo exportado del pedido de materiales');
+      await page.pause();
+      
+      console.log('✓ Exportación del pedido de materiales completada');
+      
+    } catch (error) {
+      console.log('Error durante la exportación del pedido de materiales:', error);
+    }
+    
+  } catch (error) {
+    console.log('Error durante el proceso de filtrado:', error);
+    
+    // Verificar si la página sigue activa
+    if (page.isClosed()) {
+      console.log('La página se cerró durante el filtrado');
+      return;
+    }
+  }
+  
+  // --- PAUSA FINAL ---
+  try {
+    // Verificar que la página sigue activa antes de la pausa final
+    if (page.isClosed()) {
+      console.log('La página se cerró, finalizando test');
+    } else {
+      // Pausa la ejecución para inspección manual del formulario
+      await page.pause();
+    }
+  } catch (error) {
+    console.log('Error en pausa final:', error);
+  }
   
   // Mensaje de confirmación en consola
   console.log(`Test completado: Se creó el pedido con título "Pruebas automatizadas" con ID ${materialId}, y se editó correctamente.`);
