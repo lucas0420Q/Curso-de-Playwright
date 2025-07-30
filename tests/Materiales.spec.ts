@@ -1,116 +1,120 @@
+// Importa las funciones principales de Playwright para definir tests y hacer aserciones
 import { test, expect } from '@playwright/test';
 
 // Define la URL base de la aplicación
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'http://localhost:3000'; // Cambia aquí si tu backend está en otro puerto
 
 // Define la URL de la pantalla principal de casos usando la base
-const CASES_URL = `${BASE_URL}/front-crm/cases`;
+const CASES_URL = `${BASE_URL}/front-crm/cases`; // Ruta para la pantalla de casos
 
 // Define la URL de la pantalla de materiales
-const MATERIALS_URL = `${BASE_URL}/front-crm/materials`;
+const MATERIALS_URL = `${BASE_URL}/front-crm/materials`; // Ruta para la pantalla de materiales
 
 // Define el patrón de URL para la edición de materiales
-const MATERIALS_EDIT_URL_PATTERN = /\/front-crm\/materials\/edit\/\d+/;
+const MATERIALS_EDIT_URL_PATTERN = /\/front-crm\/materials\/edit\/\d+/; // Expresión regular para detectar la URL de edición
 
 // Variable para almacenar el ID del pedido creado
-let materialId: string = '';
+let materialId: string = ''; // Se usará para guardar el ID del material creado/reciente
 
-// Test para acceder a la pantalla de materiales
+// Test principal que automatiza el flujo de creación y edición de un pedido de materiales
 test('Acceder a la pantalla de materiales', async ({ page }) => {
   // Establece el timeout máximo del test en 180 segundos (3 minutos)
-  test.setTimeout(180000);
+  test.setTimeout(180000); // Da tiempo suficiente para procesos lentos
 
-  // Configurar manejo de errores de página
+  // Configura el manejo de errores de página para mostrar en consola si ocurre alguno
   page.on('pageerror', (error) => {
-    console.log('Error de página detectado:', error.message);
+    console.log('Error de página detectado:', error.message); // Muestra el mensaje de error
   });
 
+  // Detecta si la página se cierra inesperadamente
   page.on('crash', () => {
     console.log('La página se ha cerrado inesperadamente');
   });
 
   // --- LOGIN ---
 
-  // Navega a la pantalla principal de casos
-  await page.goto(CASES_URL);
+  // Navega a la pantalla principal de casos (login)
+  await page.goto(CASES_URL); // Abre la página de login
   // Completa el campo de usuario
-  await page.locator('input[name="userName"]').fill('admin@clt.com.py');
+  await page.locator('input[name="userName"]').fill('admin@clt.com.py'); // Ingresa el usuario
   // Completa el campo de contraseña
-  await page.locator('input[name="password"]').fill('B3rL!n57A');
+  await page.locator('input[name="password"]').fill('B3rL!n57A'); // Ingresa la contraseña
   // Presiona Enter para enviar el formulario de login
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter'); // Envía el formulario
   // Espera a que la URL sea la de la pantalla principal de casos
-  await page.waitForURL(CASES_URL);
+  await page.waitForURL(CASES_URL); // Espera a que el login sea exitoso
   // Verifica que el botón "Crear Caso" esté visible
-  await expect(page.getByRole('button', { name: 'Crear Caso' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Crear Caso' })).toBeVisible(); // Confirma que se cargó la pantalla principal
 
   // --- REDIRECCIÓN A MATERIALES ---
 
-  // Navega a la URL de materiales
-  await page.goto(MATERIALS_URL);
+  // Navega a la URL de materiales después del login
+  await page.goto(MATERIALS_URL); // Redirige a la pantalla de materiales
   // Espera a que la URL sea la de materiales
-  await page.waitForURL(MATERIALS_URL);
+  await page.waitForURL(MATERIALS_URL); // Confirma que la redirección fue exitosa
   
   // --- CREAR PEDIDO DE MATERIALES ---
   
-  // Localiza y hace clic en el botón "Crear Pedido de Materiales"
+  // Localiza el botón "Crear Pedido de Materiales" usando su clase y texto
   const crearPedidoBtn = page.locator('button.primaryButton_button__IrLLt', { hasText: 'Crear Pedido de Materiales' });
-  // Espera a que el botón esté visible
+  // Espera a que el botón esté visible para asegurarse de que la página cargó
   await expect(crearPedidoBtn).toBeVisible({ timeout: 10000 });
-  // Hace clic en el botón
+  // Hace clic en el botón para iniciar la creación de un nuevo pedido
   await crearPedidoBtn.click();
   
   // Espera a que la URL cambie a la página de creación de pedido
-  await page.waitForURL(`${BASE_URL}/front-crm/materials/new`);
+  await page.waitForURL(`${BASE_URL}/front-crm/materials/new`); // Confirma que se abrió el formulario de nuevo pedido
   
   // --- COMPLETAR FORMULARIO ---
   
-  // Localiza el campo de título y cambia su valor
+  // Localiza el campo de título del pedido
   const tituloInput = page.locator('input[name="Title"]');
-  await expect(tituloInput).toBeVisible({ timeout: 10000 });
+  await expect(tituloInput).toBeVisible({ timeout: 10000 }); // Espera a que el campo esté visible
   
-  // Limpia el campo y escribe el nuevo título
+  // Limpia el campo de título por si tiene texto previo
   await tituloInput.clear();
+  // Escribe el nuevo título para el pedido
   await tituloInput.fill('Pruebas automatizadas');
   
   // --- COMPLETAR SELECTOR ---
   
-  // Localiza el primer selector de React Select y hace clic para abrirlo
+  // Localiza el primer selector de React Select (por clase) y lo abre
   const reactSelect = page.locator('.css-b4hd2p-control').first();
-  await expect(reactSelect).toBeVisible({ timeout: 10000 });
-  await reactSelect.click();
+  await expect(reactSelect).toBeVisible({ timeout: 10000 }); // Espera a que el selector esté visible
+  await reactSelect.click(); // Abre el menú de opciones
   
-  // Espera a que aparezcan las opciones y selecciona "ADMIN CRM"
-  await page.waitForTimeout(1000); // Pequeña pausa para que carguen las opciones
+  // Espera un segundo para que carguen las opciones del selector
+  await page.waitForTimeout(1000); // Pausa breve para carga visual
+  // Localiza la opción "ADMIN CRM" y la selecciona
   const adminCrmOption = page.locator('text=ADMIN CRM');
   await expect(adminCrmOption).toBeVisible({ timeout: 10000 });
   await adminCrmOption.click();
   
   // --- COMPLETAR SEGUNDO SELECTOR ---
   
-  // Localiza el segundo selector de React Select y hace clic para abrirlo
+  // Localiza el segundo selector de React Select (índice 1) y lo abre
   const segundoReactSelect = page.locator('.css-b4hd2p-control').nth(1);
   await expect(segundoReactSelect).toBeVisible({ timeout: 10000 });
   await segundoReactSelect.click();
   
-  // Espera a que aparezcan las opciones y selecciona "SUPER MOTO CROSS"
-  await page.waitForTimeout(1000); // Pequeña pausa para que carguen las opciones
+  // Espera un segundo para que carguen las opciones y selecciona "SUPER MOTO CROSS"
+  await page.waitForTimeout(1000); // Pausa breve para carga visual
   const superMotoCrossOption = page.locator('text=SUPER MOTO CROSS');
   await expect(superMotoCrossOption).toBeVisible({ timeout: 10000 });
   await superMotoCrossOption.click();
   
   // --- COMPLETAR TERCER SELECTOR ---
 
-  // Espera 3 segundos para que se complete bien el campo anterior
+  // Espera 3 segundos para asegurar que el campo anterior se complete correctamente
   await page.waitForTimeout(3000);
   
-  // Localiza el tercer selector de React Select y hace clic para abrirlo
+  // Localiza el tercer selector de React Select (índice 2) y lo abre
   const tercerReactSelect = page.locator('.css-b4hd2p-control').nth(2);
   await expect(tercerReactSelect).toBeVisible({ timeout: 10000 });
   await tercerReactSelect.click();
   
-  // Espera a que aparezcan las opciones y selecciona "SUPER MOTO CROSS (1)"
-  await page.waitForTimeout(1000); // Pequeña pausa para que carguen las opciones
+  // Espera un segundo y selecciona la opción "SUPER MOTO CROSS (1)"
+  await page.waitForTimeout(1000); // Pausa breve para carga visual
   const superMotoCross1Option = page.locator('text=SUPER MOTO CROSS (1)');
   await expect(superMotoCross1Option).toBeVisible({ timeout: 10000 });
   await superMotoCross1Option.click();
@@ -423,56 +427,79 @@ test('Acceder a la pantalla de materiales', async ({ page }) => {
   console.log('Editando el campo "Forma de entrega"...');
   
   try {
+    // Busca el elemento <span> que contiene el texto 'Forma de entrega *'
     const labelFormaEntregaSpan = page.locator('span').filter({ hasText: 'Forma de entrega *' });
+    // Espera a que el label esté visible en el DOM
     await expect(labelFormaEntregaSpan).toBeVisible({ timeout: 10000 });
     
+    // Sube dos niveles en el DOM para llegar al contenedor del campo
     const contenedorFormFloating = labelFormaEntregaSpan.locator('../..');
+    // Dentro del contenedor, localiza el selector de React Select
     const formaEntregaSelector = contenedorFormFloating.locator('.css-b4hd2p-control');
+    // Espera a que el selector esté visible
     await expect(formaEntregaSelector).toBeVisible({ timeout: 10000 });
+    // Hace clic para abrir el menú de opciones
     await formaEntregaSelector.click();
     
+    // Busca la opción 'RETIRAR DE MARKETING' en el menú desplegable
     const opcionFormaEntrega = page.locator('[role="option"]').filter({ hasText: 'RETIRAR DE MARKETING' }).first();
+    // Espera a que la opción esté visible
     await expect(opcionFormaEntrega).toBeVisible({ timeout: 15000 });
+    // Hace clic en la opción para seleccionarla
     await opcionFormaEntrega.click();
     
+    // Muestra en consola que el campo fue editado correctamente
     console.log('Campo "Forma de entrega" editado exitosamente');
   } catch (error) {
+    // Si ocurre un error, lo muestra en consola
     console.log('Error editando "Forma de entrega":', error);
   }
   
   // 7. Editar el campo "A cargo de"
-  console.log('Editando el campo "A cargo de"...');
+  console.log('Editando el campo "A cargo de"...'); // Indica en consola el inicio de la edición
   
   try {
-    // Verificar que la página sigue activa
+    // Verifica que la página sigue activa antes de interactuar
     await expect(page.locator('body')).toBeVisible({ timeout: 5000 });
     
+    // Busca el elemento <span> que contiene el texto 'A cargo de *'
     const labelACargoDeSpan = page.locator('span').filter({ hasText: 'A cargo de *' });
+    // Espera a que el label esté visible
     await expect(labelACargoDeSpan).toBeVisible({ timeout: 10000 });
     
+    // Sube dos niveles en el DOM para llegar al contenedor del campo
     const contenedorFormFloating = labelACargoDeSpan.locator('../..');
+    // Dentro del contenedor, localiza el selector de React Select
     const aCargoDeSelector = contenedorFormFloating.locator('.css-b4hd2p-control');
+    // Espera a que el selector esté visible
     await expect(aCargoDeSelector).toBeVisible({ timeout: 10000 });
+    // Hace clic para abrir el menú de opciones
     await aCargoDeSelector.click();
     
+    // Busca todas las opciones disponibles en el menú desplegable
     const opciones = page.locator('[role="option"]');
+    // Espera a que al menos una opción esté visible
     await expect(opciones.first()).toBeVisible({ timeout: 15000 });
     
-    // Intentar seleccionar la segunda opción si existe
+    // Cuenta cuántas opciones hay en el menú
     const opcionesCount = await opciones.count();
+    // Si hay más de una opción, selecciona la segunda
     if (opcionesCount > 1) {
-      await opciones.nth(1).click();
-      console.log('Campo "A cargo de" editado exitosamente');
+      await opciones.nth(1).click(); // Selecciona la segunda opción
+      console.log('Campo "A cargo de" editado exitosamente'); // Mensaje de éxito
     } else {
+      // Si solo hay una opción, selecciona la primera
       console.log('Solo hay una opción disponible en "A cargo de"');
       await opciones.first().click();
     }
   } catch (error) {
+    // Si ocurre un error, lo muestra en consola
     console.log('Error editando "A cargo de":', error);
-    // Verificar si la página sigue activa
+    // Verifica si la página sigue activa tras el error
     try {
-      await page.locator('body').isVisible();
+      await page.locator('body').isVisible(); // Intenta comprobar si la página sigue abierta
     } catch (pageError) {
+      // Si la página se cerró, lo indica y termina el test
       console.log('La página se ha cerrado o no está disponible');
       return; // Salir del test si la página no está disponible
     }
@@ -485,23 +512,33 @@ test('Acceder a la pantalla de materiales', async ({ page }) => {
     // Verificar que la página sigue activa
     await expect(page.locator('body')).toBeVisible({ timeout: 5000 });
     
+    // Busca el elemento <span> que contiene el texto 'Estado del pedido'
     const labelEstadoSpan = page.locator('span').filter({ hasText: 'Estado del pedido' });
+    // Espera a que el label esté visible
     await expect(labelEstadoSpan).toBeVisible({ timeout: 10000 });
     
+    // Sube dos niveles en el DOM para llegar al contenedor del campo
     const contenedorFormFloating = labelEstadoSpan.locator('../..');
+    // Dentro del contenedor, localiza el selector de React Select
     const estadoSelector = contenedorFormFloating.locator('.css-b4hd2p-control');
+    // Espera a que el selector esté visible
     await expect(estadoSelector).toBeVisible({ timeout: 10000 });
+    // Hace clic para abrir el menú de opciones
     await estadoSelector.click();
     
+    // Busca todas las opciones disponibles en el menú desplegable
     const opcionesEstado = page.locator('[role="option"]');
+    // Espera a que al menos una opción esté visible
     await expect(opcionesEstado.first()).toBeVisible({ timeout: 15000 });
     
-    // Intentar seleccionar la segunda opción si existe
+    // Cuenta cuántas opciones hay en el menú
     const opcionesCount = await opcionesEstado.count();
+    // Si hay más de una opción, selecciona la segunda
     if (opcionesCount > 1) {
-      await opcionesEstado.nth(1).click();
-      console.log('Campo "Estado del pedido" editado exitosamente');
+      await opcionesEstado.nth(1).click(); // Selecciona la segunda opción
+      console.log('Campo "Estado del pedido" editado exitosamente'); // Mensaje de éxito
     } else {
+      // Si solo hay una opción, selecciona la primera
       console.log('Solo hay una opción disponible en "Estado del pedido"');
       await opcionesEstado.first().click();
     }
@@ -520,20 +557,26 @@ test('Acceder a la pantalla de materiales', async ({ page }) => {
   console.log('Editando el campo comentarios...');
   
   try {
-    // Verificar que la página sigue activa
+    // Verifica que la página sigue activa antes de interactuar
     await expect(page.locator('body')).toBeVisible({ timeout: 5000 });
     
+    // Localiza el textarea del campo 'Comentarios' por su atributo name
     const comentariosTextarea = page.locator('textarea[name="AttrLastComment"]');
+    // Espera a que el textarea esté visible
     await expect(comentariosTextarea).toBeVisible({ timeout: 10000 });
+    // Escribe el comentario de edición en el campo
     await comentariosTextarea.fill('Comentario editado mediante automatización');
     
+    // Muestra en consola que el campo fue editado correctamente
     console.log('Campo "Comentarios" editado exitosamente');
   } catch (error) {
+    // Si ocurre un error, lo muestra en consola
     console.log('Error editando "Comentarios":', error);
-    // Verificar si la página sigue activa
+    // Verifica si la página sigue activa tras el error
     try {
-      await page.locator('body').isVisible();
+      await page.locator('body').isVisible(); // Intenta comprobar si la página sigue abierta
     } catch (pageError) {
+      // Si la página se cerró, lo indica y termina el test
       console.log('La página se ha cerrado o no está disponible');
       return; // Salir del test si la página no está disponible
     }
@@ -590,22 +633,27 @@ test('Acceder a la pantalla de materiales', async ({ page }) => {
   console.log('Agregando notas al pedido...');
   
   try {
-    // Verificar que la página sigue activa
+    // Verifica que la página sigue activa antes de interactuar
     await expect(page.locator('body')).toBeVisible({ timeout: 5000 });
     
-    // Localizar el textarea de notas usando la clase específica
+    // Localiza el textarea de notas usando el atributo name y la clase específica
     const notasTextarea = page.locator('textarea[name="description"].Notes_textarea__IN3Dq');
+    // Espera a que el textarea esté visible
     await expect(notasTextarea).toBeVisible({ timeout: 10000 });
     
-    // Escribir la nota
+    // Define el texto de la nota a agregar
     const textoNota = 'Esta es una nota agregada mediante automatización para el pedido de materiales. Incluye detalles adicionales sobre los productos seleccionados.';
+    // Escribe la nota en el textarea
     await notasTextarea.fill(textoNota);
     
+    // Muestra en consola que el texto de la nota fue ingresado correctamente
     console.log('Texto de nota ingresado exitosamente');
     
-    // Localizar y hacer clic en el botón "Enviar" de las notas
+    // Localiza el botón "Enviar" de las notas por clase y texto
     const enviarNotaBtn = page.locator('button.Notes_submitButton__rMudm', { hasText: 'Enviar' });
+    // Espera a que el botón esté visible
     await expect(enviarNotaBtn).toBeVisible({ timeout: 10000 });
+    // Hace clic en el botón para enviar la nota
     await enviarNotaBtn.click();
     
     console.log('Nota enviada exitosamente');
@@ -705,50 +753,55 @@ test('Acceder a la pantalla de materiales', async ({ page }) => {
     
     try {
       // Verificar que la página sigue activa antes de exportar
-      if (page.isClosed()) {
-        console.log('Error: La página se cerró antes de exportar');
-        return;
+      if (page.isClosed()) { // Si la página se cerró antes de exportar
+        console.log('Error: La página se cerró antes de exportar'); // Mensaje de error en consola
+        return; // Sale del bloque si la página está cerrada
       }
       
-      // Localizar el botón "Exportar"
+      // Localizar el botón "Exportar" usando su clase y texto
       const exportarBtn = page.locator('button.primaryButton_button__IrLLt', { hasText: 'Exportar' });
-      await expect(exportarBtn).toBeVisible({ timeout: 5000 });
+      await expect(exportarBtn).toBeVisible({ timeout: 5000 }); // Espera a que el botón esté visible
       
-      // Hacer clic en el botón exportar
+      // Hacer clic en el botón exportar para descargar el archivo
       await exportarBtn.click();
       
+      // Mensaje en consola indicando que el botón fue clickeado correctamente
       console.log('✓ Botón "Exportar" clickeado exitosamente');
       
-      // Pausa para verificar manualmente si se exportó el archivo
+      // Pausa la ejecución para que el usuario verifique manualmente la descarga
       console.log('⏸️ PAUSA: Verifica si se descargó el archivo exportado del pedido de materiales');
-      await page.pause();
+      await page.pause(); // Pausa interactiva de Playwright
       
+      // Mensaje en consola indicando que la exportación se completó
       console.log('✓ Exportación del pedido de materiales completada');
       
     } catch (error) {
-      console.log('Error durante la exportación del pedido de materiales:', error);
+    // Si ocurre un error durante la exportación, lo muestra en consola
+    console.log('Error durante la exportación del pedido de materiales:', error);
     }
     
   } catch (error) {
+    // Si ocurre un error durante el filtrado, lo muestra en consola
     console.log('Error durante el proceso de filtrado:', error);
     
-    // Verificar si la página sigue activa
+    // Verificar si la página sigue activa tras el error
     if (page.isClosed()) {
-      console.log('La página se cerró durante el filtrado');
-      return;
+      console.log('La página se cerró durante el filtrado'); // Mensaje de error si la página se cerró
+      return; // Sale del bloque si la página está cerrada
     }
   }
   
   // --- PAUSA FINAL ---
   try {
     // Verificar que la página sigue activa antes de la pausa final
-    if (page.isClosed()) {
-      console.log('La página se cerró, finalizando test');
+    if (page.isClosed()) { // Si la página se cerró antes de la pausa
+      console.log('La página se cerró, finalizando test'); // Mensaje de cierre en consola
     } else {
-      // Pausa la ejecución para inspección manual del formulario
-      await page.pause();
+      // Pausa la ejecución para inspección manual del formulario final
+      await page.pause(); // Pausa interactiva de Playwright
     }
   } catch (error) {
+    // Si ocurre un error durante la pausa final, lo muestra en consola
     console.log('Error en pausa final:', error);
   }
   
