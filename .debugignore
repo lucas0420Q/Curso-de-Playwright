@@ -1,0 +1,21 @@
+# 🐛 Debug Files - No subir al repositorio
+
+# Screenshots temporales
+*.tmp.png
+*-temp-*.png
+
+# Videos muy grandes (>50MB)
+*.webm
+*.mp4
+
+# Traces pesados
+*.zip
+
+# Archivos de log de debug
+debug.log
+*.debug.txt
+
+# Capturas de pantalla personales/sensibles
+*-personal-*.png
+*-credentials-*.png
+*-sensitive-*.png
